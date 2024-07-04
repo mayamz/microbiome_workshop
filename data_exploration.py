@@ -21,7 +21,7 @@ def load_data():
 
 # Visulize metadata
 def visualize_metadata(metadata):
-    samples_per_baboon(metadata)
+    # samples_per_baboon(metadata)
     time_diff_samples(metadata)
 
 
@@ -85,19 +85,43 @@ def time_diff_samples(metadata):
     plt.show()
 
 
+def FFQ_plot(metadata):
+    sns.scatterplot(x=metadata["diet_PC1"], y=metadata["diet_PC2"], palette = custom_palette[::10], hue =metadata["social_group"])
+    plt.title("By group")
+    plt.show()
+
+    sns.scatterplot(x = metadata["diet_PC1"], y = metadata["diet_PC2"], palette = custom_palette[::10],
+                    hue = metadata["season"])
+    plt.title("By season")
+    plt.show()
+
+    sns.scatterplot(x = metadata["diet_PC1"], y = metadata["diet_PC2"], palette = custom_palette,
+                    hue = metadata["rain_month_mm"])
+    plt.title("By rain")
+    plt.show()
+
+    sns.scatterplot(x = metadata["diet_PC1"], y = metadata["diet_PC2"], palette = custom_palette[0:90:5],
+                    hue = metadata["month"])
+    plt.title("By month")
+    plt.show()
+
 # visualize data
 def visualize_data(data):
+    distance_matrix(data)
+
+def distance_matrix(data):
     distance_matrix = np.zeros((len(data), len(data)))
     for index1, sample1 in data.iterrows():
         for index2, sample2 in data.iterrows():
-            distance_matrix[index1, index2] = braycurtis(data.iloc[index1,1:], data.iloc[index2,1:])
+            distance_matrix[index1, index2] = braycurtis(data.iloc[index1, 1:], data.iloc[index2, 1:])
     print(distance_matrix)
 
 
 def main():
     data, metadata = load_data()
-    # visualize_metadata(metadata)
+    visualize_metadata(metadata)
     visualize_data(data)
+    FFQ_plot(metadata)
 
 if __name__ == '__main__':
     main()
