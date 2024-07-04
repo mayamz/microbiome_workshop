@@ -46,6 +46,8 @@ def samples_per_baboon(metadata):
 
 def time_diff_samples(metadata):
     # plot diff per baboon
+    metadata["baboon_id"] = metadata["baboon_id"].str.replace("Baboon_","").astype(int)
+    metadata = metadata.sort_values(by="baboon_id")
     fig = plt.figure(figsize = (15, 10))
     metadata["collection_date"] = pd.to_datetime(metadata["collection_date"])
     for i, baboon in enumerate(metadata["baboon_id"].unique()):
@@ -53,7 +55,9 @@ def time_diff_samples(metadata):
         baboon_samples['difference'] = baboon_samples["collection_date"].diff().dt.days
         sns.boxplot(x = i, y = baboon_samples['difference'])
     plt.title("Time Difference Between Sequential Samples")
-    plt.xticks(metadata["baboon_id"].unique())
+    fig.canvas.draw()
+
+    plt.xticks(range(len(metadata["baboon_id"].unique())), metadata["baboon_id"].unique(), rotation = 'vertical')
     plt.xlabel("Baboon")
     plt.ylabel("Days Between Sequential Samples")
     plt.show()
