@@ -11,6 +11,7 @@ from sklearn.manifold import MDS
 from scipy.spatial.distance import braycurtis
 
 custom_palette = list(sns.color_palette("hls", 100))
+custom_gradient = sns.color_palette("hls", 100, as_cmap=True)
 DATA_PATH = "./data/"
 
 
@@ -21,7 +22,7 @@ def load_data():
 
 # Visulize metadata
 def visualize_metadata(metadata):
-    # samples_per_baboon(metadata)
+    samples_per_baboon(metadata)
     time_diff_samples(metadata)
 
 
@@ -87,22 +88,27 @@ def time_diff_samples(metadata):
 
 def FFQ_plot(metadata):
     sns.scatterplot(x=metadata["diet_PC1"], y=metadata["diet_PC2"], palette = custom_palette[::10], hue =metadata["social_group"])
+    plt.legend(loc='center left', bbox_to_anchor=(0.78, 0.29))
     plt.title("By group")
+    plt.savefig("By group")
     plt.show()
 
     sns.scatterplot(x = metadata["diet_PC1"], y = metadata["diet_PC2"], palette = custom_palette[::10],
                     hue = metadata["season"])
     plt.title("By season")
+    plt.savefig("By season")
     plt.show()
 
-    sns.scatterplot(x = metadata["diet_PC1"], y = metadata["diet_PC2"], palette = custom_palette,
+    sns.scatterplot(x = metadata["diet_PC1"], y = metadata["diet_PC2"], palette = custom_gradient,
                     hue = metadata["rain_month_mm"])
     plt.title("By rain")
+    plt.savefig("By rain")
     plt.show()
 
     sns.scatterplot(x = metadata["diet_PC1"], y = metadata["diet_PC2"], palette = custom_palette[0:90:5],
                     hue = metadata["month"])
     plt.title("By month")
+    plt.savefig("By month")
     plt.show()
 
 # visualize data
@@ -113,8 +119,10 @@ def distance_matrix(data):
     distance_matrix = np.zeros((len(data), len(data)))
     for index1, sample1 in data.iterrows():
         for index2, sample2 in data.iterrows():
-            distance_matrix[index1, index2] = braycurtis(data.iloc[index1, 1:], data.iloc[index2, 1:])
-    print(distance_matrix)
+            distance_matrix[index1, index2] = braycurtis(data.iloc[index1,1:], data.iloc[index2,1:])
+            print(index1, index2)
+    distance_df = pd.DataFrame(distance_matrix)
+    distance_df.to_csv("braycurtis.csv")
 
 
 def main():
