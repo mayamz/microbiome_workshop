@@ -7,6 +7,9 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 
+from sklearn.manifold import MDS
+from scipy.spatial.distance import braycurtis
+
 DATA_PATH = "./data/"
 
 
@@ -15,7 +18,7 @@ def load_data():
     data = pd.read_csv(f"{DATA_PATH}train_data.csv")
     return data, metadata
 
-
+# Visulize metadata
 def visualize_metadata(metadata):
     samples_per_baboon(metadata)
     time_diff_samples(metadata)
@@ -81,10 +84,19 @@ def time_diff_samples(metadata):
     plt.show()
 
 
+# visualize data
+def visualize_data(data):
+    distance_matrix = np.zeros((len(data), len(data)))
+    for index1, sample1 in data.iterrows():
+        for index2, sample2 in data.iterrows():
+            distance_matrix[index1, index2] = braycurtis(data.iloc[index1,1:], data.iloc[index2,1:])
+    print(distance_matrix)
+
+
 def main():
     data, metadata = load_data()
-    visualize_metadata(metadata)
-
+    # visualize_metadata(metadata)
+    visualize_data(data)
 
 if __name__ == '__main__':
     main()
