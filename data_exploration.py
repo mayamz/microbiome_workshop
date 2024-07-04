@@ -10,6 +10,7 @@ import seaborn as sns
 from sklearn.manifold import MDS
 from scipy.spatial.distance import braycurtis
 
+custom_palette = list(sns.color_palette("hls", 100))
 DATA_PATH = "./data/"
 
 
@@ -56,7 +57,7 @@ def time_diff_samples(metadata):
     for i, baboon in enumerate(metadata["baboon_id"].unique()):
         baboon_samples = metadata[metadata["baboon_id"] == baboon].sort_values(by = "collection_date")
         baboon_samples['difference'] = baboon_samples["collection_date"].diff().dt.days
-        sns.boxplot(x = i, y = baboon_samples['difference'])
+        sns.boxplot(x = i, y = baboon_samples['difference'], color = custom_palette[i])
     plt.title("Time Difference Between Sequential Samples")
     fig.canvas.draw()
 
