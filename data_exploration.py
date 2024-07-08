@@ -9,9 +9,10 @@ import seaborn as sns
 
 from sklearn.manifold import MDS
 from scipy.spatial.distance import pdist, squareform
-
+from statsmodels.tsa.stattools import pacf
 custom_palette = list(sns.color_palette("hls", 100))
 DATA_PATH = "./data/"
+meta_features = ["sample", "baboon_id", "season", "collection_date"]
 
 
 def load_data():
@@ -21,7 +22,6 @@ def load_data():
 
     species = list(data.columns)
     species.remove("sample")
-    meta_features = ["sample", "baboon_id", "season", "collection_date"]
 
     data = pd.merge(data, metadata[meta_features], on = 'sample', how = 'inner')
     data = data[meta_features + species]
@@ -130,7 +130,7 @@ def distance_matrix(data, redo=False):
         d_matrix = (d_matrix)
         mds = MDS(n_components = 3)
         transformed = mds.fit_transform(d_matrix)
-        pd.DataFrame(transformed).to_csv("transformed_data_3d.csv")
+        pd.DataFrame(transformed).to_csv("transformed_data.csv")
 
     transformed = pd.read_csv("transformed_data.csv", index_col = 0)
     sns.scatterplot(x = transformed["0"], y = transformed["1"], hue = data["season"]) #, palette = custom_palette[0:90:5]
@@ -154,11 +154,29 @@ def distance_matrix(data, redo=False):
     plt.show()
 
 
+def autocorrelation(data):
+    bacterias = list(data.drop(columns=meta_features).columns)
+    results_pacf = dict()
+    for baboon in data["baboon_id"].unique():
+        baboon_df = data[data["baboon_id"] == baboon].sort_values("collection_date")
+        baboon_df = baboon_df.drop(columns=meta_features)
+        for bacteria in bacterias:
+            results_pacf[baboon+bacteria] = pacf(baboon_df[bacteria], nlags=10)
+    pacf_df = pd.DataFrame(results_pacf).T
+    for i in range(10):
+        sns.boxplot(x=i, y=pacf_df[i], color=custom_palette[10*i])
+
+    plt.title("Partial Auto-correlation Across Baboons and Bacterias")
+    plt.xlabel("Lag")
+    plt.ylabel("Partial Correlation")
+    plt.show()
+
 def main():
     data, metadata = load_data()
     # visualize_metadata(metadata)
-    visualize_data(data)
+    # visualize_data(data)
     # FFQ_plot(metadata)
+    autocorrelation(data)
 
 
 if __name__ == '__main__':
