@@ -16,13 +16,15 @@ DATA_PATH = "./data/"
 
 def load_data():
     metadata = pd.read_csv(f"{DATA_PATH}train_metadata.csv")
+    metadata["collection_date"] = pd.to_datetime(metadata["collection_date"])
     data = pd.read_csv(f"{DATA_PATH}train_data.csv")
-    data = pd.merge(data, metadata[["sample", "baboon_id"]], on = 'sample', how = 'inner')
 
     species = list(data.columns)
     species.remove("sample")
-    species.remove("baboon_id")
-    data = data[["sample", "baboon_id"] + species]
+    meta_features = ["sample", "baboon_id", "season", "collection_date"]
+
+    data = pd.merge(data, metadata[meta_features], on = 'sample', how = 'inner')
+    data = data[meta_features + species]
     return data, metadata
 
 
@@ -131,10 +133,24 @@ def distance_matrix(data, redo=False):
         pd.DataFrame(transformed).to_csv("transformed_data_3d.csv")
 
     transformed = pd.read_csv("transformed_data.csv", index_col = 0)
-    sns.scatterplot(x = transformed["0"], y = transformed["1"], hue = data["baboon_id"])
-    plt.title("PCOA by Bray-Curtis Distance")
-    plt.xlabel("PCOA1")
-    plt.ylabel("PCOA2")
+    sns.scatterplot(x = transformed["0"], y = transformed["1"], hue = data["season"]) #, palette = custom_palette[0:90:5]
+    plt.title("PCoA by Bray-Curtis Distance")
+    plt.xlabel("PCoA1")
+    plt.ylabel("PCoA2")
+
+    # Plot movement arrows
+    for baboon in data["baboon_id"].unique()[:1]:
+        print(baboon)
+        baboon_df = data[data["baboon_id"]==baboon].sort_values("collection_date")
+        baboon_transformed = transformed.iloc[baboon_df.index, :].reset_index(drop=True)
+        for sample_index in range(len(baboon_transformed)-1):
+            x, y = baboon_transformed.iloc[sample_index,:][0], baboon_transformed.iloc[sample_index,:][1]
+            dx = baboon_transformed.iloc[sample_index+1,:][0] - baboon_transformed.iloc[sample_index,:][0]
+            dy = baboon_transformed.iloc[sample_index+1,:][1] - baboon_transformed.iloc[sample_index,:][1]
+
+            plt.arrow(x, y, dx, dy, length_includes_head=True, head_width=0.2, head_length=0.2)
+
+
     plt.show()
 
 
