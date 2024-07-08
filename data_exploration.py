@@ -8,17 +8,23 @@ import numpy as np
 import seaborn as sns
 
 from sklearn.manifold import MDS
-from scipy.spatial.distance import braycurtis
+from scipy.spatial.distance import pdist, squareform
 
 custom_palette = list(sns.color_palette("hls", 100))
-custom_gradient = sns.color_palette("hls", 100, as_cmap=True)
 DATA_PATH = "./data/"
 
 
 def load_data():
     metadata = pd.read_csv(f"{DATA_PATH}train_metadata.csv")
     data = pd.read_csv(f"{DATA_PATH}train_data.csv")
+    data = pd.merge(data, metadata[["sample", "baboon_id"]], on = 'sample', how = 'inner')
+
+    species = list(data.columns)
+    species.remove("sample")
+    species.remove("baboon_id")
+    data = data[["sample", "baboon_id"] + species]
     return data, metadata
+
 
 # Visulize metadata
 def visualize_metadata(metadata):
@@ -51,8 +57,8 @@ def samples_per_baboon(metadata):
 
 def time_diff_samples(metadata):
     # plot diff per baboon
-    metadata["baboon_id"] = metadata["baboon_id"].str.replace("Baboon_","").astype(int)
-    metadata = metadata.sort_values(by="baboon_id")
+    metadata["baboon_id"] = metadata["baboon_id"].str.replace("Baboon_", "").astype(int)
+    metadata = metadata.sort_values(by = "baboon_id")
     fig = plt.figure(figsize = (15, 10))
     metadata["collection_date"] = pd.to_datetime(metadata["collection_date"])
     for i, baboon in enumerate(metadata["baboon_id"].unique()):
@@ -115,21 +121,29 @@ def FFQ_plot(metadata):
 def visualize_data(data):
     distance_matrix(data)
 
-def distance_matrix(data):
-    distance_matrix = np.zeros((len(data), len(data)))
-    for index1, sample1 in data.iterrows():
-        for index2, sample2 in data.iterrows():
-            distance_matrix[index1, index2] = braycurtis(data.iloc[index1,1:], data.iloc[index2,1:])
-            print(index1, index2)
-    distance_df = pd.DataFrame(distance_matrix)
-    distance_df.to_csv("braycurtis.csv")
+
+def distance_matrix(data, redo=False):
+    if redo:
+        d_matrix = squareform(pdist(data.iloc[:, 2:], metric = 'braycurtis'))
+        d_matrix = (d_matrix)
+        mds = MDS(n_components = 3)
+        transformed = mds.fit_transform(d_matrix)
+        pd.DataFrame(transformed).to_csv("transformed_data_3d.csv")
+
+    transformed = pd.read_csv("transformed_data.csv", index_col = 0)
+    sns.scatterplot(x = transformed["0"], y = transformed["1"], hue = data["baboon_id"])
+    plt.title("PCOA by Bray-Curtis Distance")
+    plt.xlabel("PCOA1")
+    plt.ylabel("PCOA2")
+    plt.show()
 
 
 def main():
     data, metadata = load_data()
-    visualize_metadata(metadata)
+    # visualize_metadata(metadata)
     visualize_data(data)
-    FFQ_plot(metadata)
+    # FFQ_plot(metadata)
+
 
 if __name__ == '__main__':
     main()
