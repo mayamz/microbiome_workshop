@@ -83,7 +83,6 @@ def time_diff_samples(metadata):
         baboon_samples = metadata[metadata["baboon_id"] == baboon].sort_values(by = "collection_date")
         baboon_samples['difference'] = baboon_samples["collection_date"].diff().dt.days
         diffs = pd.concat([diffs, baboon_samples['difference']])
-
     sns.histplot(diffs)
     plt.title("Time Difference Between Sequential Samples")
     plt.xlabel("Days Between Sequential Samples")
@@ -126,22 +125,45 @@ def visualize_data(data):
 
 def distance_matrix(data, redo=False):
     if redo:
-        d_matrix = squareform(pdist(data.iloc[:, 2:], metric = 'braycurtis'))
+        d_matrix = squareform(pdist(data.iloc[:, len(meta_features):], metric = 'braycurtis'))
         d_matrix = (d_matrix)
         mds = MDS(n_components = 2)
         transformed = mds.fit_transform(d_matrix)
         pd.DataFrame(transformed).to_csv("transformed_data.csv")
 
-    transformed = pd.read_csv("transformed_data.csv", index_col = 0)
+    else:
+        transformed = pd.read_csv("transformed_data.csv", index_col = 0)
+        d_matrix = pd.read_csv("braycurtis_matrix.csv", index_col = 0)
+    subsequent = []
+    # dist of subsequent samples' distance
+    for baboon in data["baboon_id"].unique():
+        baboon_df = data[data["baboon_id"]==baboon].sort_values("collection_date")
+        for i in range(len(baboon_df)-1):
+            this_index = int(baboon_df.index[i])
+            next_index = int(baboon_df.index[i+1])
+            subsequent.append(d_matrix.iloc[this_index,next_index])
+    sns.histplot(subsequent, bins=60)
+    plt.title("Average Distance Between Subsequent Samples")
+    plt.xlabel("Bray-Curtis Distance")
+    plt.ylabel("Number of Subsequent Samples")
+    plt.show()
+
     sns.scatterplot(x = transformed["0"], y = transformed["1"], hue = data["season"]) #, palette = custom_palette[0:90:5]
     plt.title("PCoA by Bray-Curtis Distance")
     plt.xlabel("PCoA1")
     plt.ylabel("PCoA2")
 
+
     # Plot movement arrows
     for baboon in data["baboon_id"].unique()[:1]:
         print(baboon)
         baboon_df = data[data["baboon_id"]==baboon].sort_values("collection_date")
+        for i in range(len(baboon_df)-1):
+            this_index = int(baboon_df.index[i])
+            next_index = int(baboon_df.index[i+1])
+            subsequent.append(d_matrix.iloc[this_index,next_index])
+
+
         baboon_transformed = transformed.iloc[baboon_df.index, :].reset_index(drop=True)
         for sample_index in range(len(baboon_transformed)-1):
             x, y = baboon_transformed.iloc[sample_index,:][0], baboon_transformed.iloc[sample_index,:][1]
@@ -149,7 +171,6 @@ def distance_matrix(data, redo=False):
             dy = baboon_transformed.iloc[sample_index+1,:][1] - baboon_transformed.iloc[sample_index,:][1]
 
             plt.arrow(x, y, dx, dy, length_includes_head=True, head_width=0.2, head_length=0.2)
-
 
     plt.show()
 
@@ -174,9 +195,9 @@ def autocorrelation(data):
 def main():
     data, metadata = load_data()
     # visualize_metadata(metadata)
-    # visualize_data(data)
+    visualize_data(data)
     # FFQ_plot(metadata)
-    autocorrelation(data)
+    # autocorrelation(data)
 
 
 if __name__ == '__main__':
