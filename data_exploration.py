@@ -128,7 +128,7 @@ def distance_matrix(data, redo=False):
     if redo:
         d_matrix = squareform(pdist(data.iloc[:, 2:], metric = 'braycurtis'))
         d_matrix = (d_matrix)
-        mds = MDS(n_components = 3)
+        mds = MDS(n_components = 2)
         transformed = mds.fit_transform(d_matrix)
         pd.DataFrame(transformed).to_csv("transformed_data.csv")
 
