@@ -142,7 +142,7 @@ def distance_matrix(data, redo=False):
             this_index = int(baboon_df.index[i])
             next_index = int(baboon_df.index[i+1])
             subsequent.append(d_matrix.iloc[this_index,next_index])
-    sns.histplot(subsequent, bins=60)
+    sns.histplot(subsequent, bins=60, kde=True)
     plt.title(f"Average Distance Between Subsequent Samples - Average {np.mean(subsequent)}")
     plt.xlabel("Bray-Curtis Distance")
     plt.ylabel("Number of Subsequent Samples")
