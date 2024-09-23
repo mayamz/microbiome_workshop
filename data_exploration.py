@@ -10,9 +10,10 @@ import seaborn as sns
 from sklearn.manifold import MDS
 from scipy.spatial.distance import pdist, squareform
 from statsmodels.tsa.stattools import pacf
+
 custom_palette = list(sns.color_palette("hls", 100))
 DATA_PATH = "./data/"
-meta_features = ["sample", "baboon_id", "season", "collection_date"]
+meta_features = ["sample", "baboon_id", "collection_date"]
 
 
 def load_data():
@@ -23,7 +24,7 @@ def load_data():
     species = list(data.columns)
     species.remove("sample")
 
-    data = pd.merge(data, metadata[meta_features], on = 'sample', how = 'inner')
+    data = pd.merge(data, metadata[meta_features], on='sample', how='inner')
     data = data[meta_features + species]
     return data, metadata
 
@@ -38,19 +39,19 @@ def samples_per_baboon(metadata):
     # samples per baboon df
     sample_per_baboon = metadata.groupby("baboon_id")[["sample"]].count()
     sample_per_baboon.index = sample_per_baboon.index.str.replace("Baboon_", "")
-    sample_per_baboon = sample_per_baboon.sort_values(by = "sample", ascending = False)
+    sample_per_baboon = sample_per_baboon.sort_values(by="sample", ascending=False)
 
     # Hist
-    sns.histplot(sample_per_baboon, bins = 60)
+    sns.histplot(sample_per_baboon, bins=60)
     plt.title("Sample per Baboon")
     plt.xlabel("Number of Samples per Baboon")
     plt.ylabel("Number of Baboons")
     plt.show()
 
     # sample per baboon scatter plot
-    fig = plt.figure(figsize = (15, 10))
+    fig = plt.figure(figsize=(15, 10))
     plt.scatter(sample_per_baboon.index, sample_per_baboon["sample"])
-    plt.xticks(rotation = 45, size = 7)
+    plt.xticks(rotation=45, size=7)
     plt.title("Number of Samples per Baboon ID")
     plt.xlabel("Baboon ID")
     plt.ylabel("Number of Samples")
@@ -60,27 +61,27 @@ def samples_per_baboon(metadata):
 def time_diff_samples(metadata):
     # plot diff per baboon
     metadata["baboon_id"] = metadata["baboon_id"].str.replace("Baboon_", "").astype(int)
-    metadata = metadata.sort_values(by = "baboon_id")
-    fig = plt.figure(figsize = (15, 10))
+    metadata = metadata.sort_values(by="baboon_id")
+    fig = plt.figure(figsize=(15, 10))
     metadata["collection_date"] = pd.to_datetime(metadata["collection_date"])
     for i, baboon in enumerate(metadata["baboon_id"].unique()):
-        baboon_samples = metadata[metadata["baboon_id"] == baboon].sort_values(by = "collection_date")
+        baboon_samples = metadata[metadata["baboon_id"] == baboon].sort_values(by="collection_date")
         baboon_samples['difference'] = baboon_samples["collection_date"].diff().dt.days
-        sns.boxplot(x = i, y = baboon_samples['difference'], color = custom_palette[i])
+        sns.boxplot(x=i, y=baboon_samples['difference'], color=custom_palette[i])
     plt.title("Time Difference Between Sequential Samples")
     fig.canvas.draw()
 
-    plt.xticks(range(len(metadata["baboon_id"].unique())), metadata["baboon_id"].unique(), rotation = 'vertical')
+    plt.xticks(range(len(metadata["baboon_id"].unique())), metadata["baboon_id"].unique(), rotation='vertical')
     plt.xlabel("Baboon")
     plt.ylabel("Days Between Sequential Samples")
     plt.show()
 
     # plot total diff per baboon
-    fig = plt.figure(figsize = (15, 10))
+    fig = plt.figure(figsize=(15, 10))
     metadata["collection_date"] = pd.to_datetime(metadata["collection_date"])
     diffs = pd.Series()
     for baboon in metadata["baboon_id"].unique():
-        baboon_samples = metadata[metadata["baboon_id"] == baboon].sort_values(by = "collection_date")
+        baboon_samples = metadata[metadata["baboon_id"] == baboon].sort_values(by="collection_date")
         baboon_samples['difference'] = baboon_samples["collection_date"].diff().dt.days
         diffs = pd.concat([diffs, baboon_samples['difference']])
     sns.histplot(diffs)
@@ -94,29 +95,31 @@ def time_diff_samples(metadata):
 
 
 def FFQ_plot(metadata):
-    sns.scatterplot(x=metadata["diet_PC1"], y=metadata["diet_PC2"], palette = custom_palette[::10], hue =metadata["social_group"])
+    sns.scatterplot(x=metadata["diet_PC1"], y=metadata["diet_PC2"], palette=custom_palette[::10],
+                    hue=metadata["social_group"])
     plt.legend(loc='center left', bbox_to_anchor=(0.78, 0.29))
     plt.title("By group")
     plt.savefig("By group")
     plt.show()
 
-    sns.scatterplot(x = metadata["diet_PC1"], y = metadata["diet_PC2"], palette = custom_palette[::10],
-                    hue = metadata["season"])
+    sns.scatterplot(x=metadata["diet_PC1"], y=metadata["diet_PC2"], palette=custom_palette[::10],
+                    hue=metadata["season"])
     plt.title("By season")
     plt.savefig("By season")
     plt.show()
 
-    sns.scatterplot(x = metadata["diet_PC1"], y = metadata["diet_PC2"], palette = custom_gradient,
-                    hue = metadata["rain_month_mm"])
+    sns.scatterplot(x=metadata["diet_PC1"], y=metadata["diet_PC2"], palette=custom_gradient,
+                    hue=metadata["rain_month_mm"])
     plt.title("By rain")
     plt.savefig("By rain")
     plt.show()
 
-    sns.scatterplot(x = metadata["diet_PC1"], y = metadata["diet_PC2"], palette = custom_palette[0:90:5],
-                    hue = metadata["month"])
+    sns.scatterplot(x=metadata["diet_PC1"], y=metadata["diet_PC2"], palette=custom_palette[0:90:5],
+                    hue=metadata["month"])
     plt.title("By month")
     plt.savefig("By month")
     plt.show()
+
 
 # visualize data
 def visualize_data(data):
@@ -125,50 +128,51 @@ def visualize_data(data):
 
 def distance_matrix(data, redo=False):
     if redo:
-        d_matrix = squareform(pdist(data.iloc[:, len(meta_features):], metric = 'braycurtis'))
-        d_matrix = (d_matrix)
-        mds = MDS(n_components = 2)
+        d_matrix = squareform(pdist(data.iloc[:, len(meta_features):], metric='braycurtis'))
+        mds = MDS(n_components=2)
         transformed = mds.fit_transform(d_matrix)
         pd.DataFrame(transformed).to_csv("transformed_data.csv")
+        pd.DataFrame(d_matrix).to_csv("braycurtis_matrix.csv")
 
     else:
-        transformed = pd.read_csv("transformed_data.csv", index_col = 0)
-        d_matrix = pd.read_csv("braycurtis_matrix.csv", index_col = 0)
+        transformed = pd.read_csv("transformed_data.csv", index_col=0)
+        d_matrix = pd.read_csv("braycurtis_matrix.csv", index_col=0)
+
     subsequent = []
     # dist of subsequent samples' distance
     for baboon in data["baboon_id"].unique():
-        baboon_df = data[data["baboon_id"]==baboon].sort_values("collection_date")
-        for i in range(len(baboon_df)-1):
+        baboon_df = data[data["baboon_id"] == baboon].sort_values("collection_date")
+        for i in range(len(baboon_df) - 1):
             this_index = int(baboon_df.index[i])
-            next_index = int(baboon_df.index[i+1])
-            subsequent.append(d_matrix.iloc[this_index,next_index])
+            next_index = int(baboon_df.index[i + 1])
+            subsequent.append(d_matrix.iloc[this_index, next_index])
     sns.histplot(subsequent, bins=60, kde=True)
-    plt.title(f"Average Distance Between Subsequent Samples - Average {np.mean(subsequent)}")
+    plt.axvline(x=np.mean(subsequent), color='steelblue', linestyle='--', linewidth=2)
+
+    plt.title(f"Average Distance Between Subsequent Samples - Average {round(np.mean(subsequent), 3)}")
     plt.xlabel("Bray-Curtis Distance")
     plt.ylabel("Number of Subsequent Samples")
     plt.show()
 
-    sns.scatterplot(x = transformed["0"], y = transformed["1"], hue = data["season"]) #, palette = custom_palette[0:90:5]
+    sns.scatterplot(x=transformed["0"], y=transformed["1"], hue=data["season"])  # , palette = custom_palette[0:90:5]
     plt.title("PCoA by Bray-Curtis Distance")
     plt.xlabel("PCoA1")
     plt.ylabel("PCoA2")
 
-
     # Plot movement arrows
     for baboon in data["baboon_id"].unique()[:1]:
         print(baboon)
-        baboon_df = data[data["baboon_id"]==baboon].sort_values("collection_date")
-        for i in range(len(baboon_df)-1):
+        baboon_df = data[data["baboon_id"] == baboon].sort_values("collection_date")
+        for i in range(len(baboon_df) - 1):
             this_index = int(baboon_df.index[i])
-            next_index = int(baboon_df.index[i+1])
-            subsequent.append(d_matrix.iloc[this_index,next_index])
-
+            next_index = int(baboon_df.index[i + 1])
+            subsequent.append(d_matrix.iloc[this_index, next_index])
 
         baboon_transformed = transformed.iloc[baboon_df.index, :].reset_index(drop=True)
-        for sample_index in range(len(baboon_transformed)-1):
-            x, y = baboon_transformed.iloc[sample_index,:][0], baboon_transformed.iloc[sample_index,:][1]
-            dx = baboon_transformed.iloc[sample_index+1,:][0] - baboon_transformed.iloc[sample_index,:][0]
-            dy = baboon_transformed.iloc[sample_index+1,:][1] - baboon_transformed.iloc[sample_index,:][1]
+        for sample_index in range(len(baboon_transformed) - 1):
+            x, y = baboon_transformed.iloc[sample_index, :][0], baboon_transformed.iloc[sample_index, :][1]
+            dx = baboon_transformed.iloc[sample_index + 1, :][0] - baboon_transformed.iloc[sample_index, :][0]
+            dy = baboon_transformed.iloc[sample_index + 1, :][1] - baboon_transformed.iloc[sample_index, :][1]
 
             plt.arrow(x, y, dx, dy, length_includes_head=True, head_width=0.2, head_length=0.2)
 
@@ -182,15 +186,16 @@ def autocorrelation(data):
         baboon_df = data[data["baboon_id"] == baboon].sort_values("collection_date")
         baboon_df = baboon_df.drop(columns=meta_features)
         for bacteria in bacterias:
-            results_pacf[baboon+bacteria] = pacf(baboon_df[bacteria], nlags=10)
+            results_pacf[baboon + bacteria] = pacf(baboon_df[bacteria], nlags=10)
     pacf_df = pd.DataFrame(results_pacf).T
     for i in range(10):
-        sns.boxplot(x=i, y=pacf_df[i], color=custom_palette[10*i])
+        sns.boxplot(x=i, y=pacf_df[i], color=custom_palette[10 * i])
 
     plt.title("Partial Auto-correlation Across Baboons and Bacterias")
     plt.xlabel("Lag")
     plt.ylabel("Partial Correlation")
     plt.show()
+
 
 def main():
     data, metadata = load_data()
