@@ -58,17 +58,18 @@ def interpolation_dist_metric(x, y):
 def seasonal_dist_metric(x, y):
     # TODO: This is the seasonal KNN model distance metric, it will be changed
     # representing the closeness to the sample's baboon - social_group, age, sex
-    identity_metric = (x["social_group"] == y["social_group"])  # group identity
+    identity_metric = (x["social_group"] != y["social_group"])  # group identity, TODO: check in the article for details
     identity_metric += np.abs(x["age"] - y["age"])  # age similarity
-    identity_metric += (x["sex"] == y["sex"])  # sex identity
+    identity_metric += (x["sex"] != y["sex"])  # sex identity
 
     # representing the closeness to the sample's season - month, rain_month_mm
     time_metric = np.linalg.norm(x[["month_sin", "month_cos"]] - y[["month_sin", "month_cos"]])  # month similarity
     time_metric += np.abs(x["rain_month_mm"] - y["rain_month_mm"])  # rain similarity
 
-    # representing the closeness to the sample's diet  -  diet_PC1,diet_PC2
+    # representing the closeness to the sample's diet  -  diet_PC1, diet_PC2, diet_PC3
     diet_metric = np.abs(x["diet_PC1"] - y["diet_PC1"])  # diet_PC1
     diet_metric += 0.5 * np.abs(x["diet_PC2"] - y["diet_PC2"])  # diet_PC2
+    diet_metric += 0.25 * np.abs(x["diet_PC3"] - y["diet_PC3"])  # diet_PC3
 
     dist = identity_metric + time_metric + diet_metric
     return dist
@@ -178,12 +179,7 @@ def trend_pred(data, x_test):
 
 
 def predict(data, x_test):
-    """ Predict microbiome for x_test metadata using a hybrid of two methods
-
-    :param data:    microbiome int
-    :param x_test:
-    :return:
-    """
+    """ Predict microbiome for x_test metadata using a hybrid of two methods"""
     # Get prediction from both models
     seasonal_prediction = seasonal_pred(data, x_test)
     trend_prediction = trend_pred(data, x_test)
