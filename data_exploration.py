@@ -9,7 +9,7 @@ import seaborn as sns
 
 from sklearn.manifold import MDS
 from scipy.spatial.distance import pdist, squareform
-from statsmodels.tsa.stattools import pacf
+from statsmodels.tsa.stattools import pacf, acf
 
 custom_palette = list(sns.color_palette("hls", 100))
 DATA_PATH = "./data/"
@@ -187,6 +187,23 @@ def autocorrelation(data):
         baboon_df = baboon_df.drop(columns=meta_features)
         for bacteria in bacterias:
             results_pacf[baboon + bacteria] = pacf(baboon_df[bacteria], nlags=10)
+    pacf_df = pd.DataFrame(results_pacf).T
+    for i in range(10):
+        sns.boxplot(x=i, y=pacf_df[i], color=custom_palette[10 * i])
+
+    plt.title("Partial Auto-correlation Across Baboons and Bacterias")
+    plt.xlabel("Lag")
+    plt.ylabel("Partial Correlation")
+    plt.show()
+
+def autocorrelation_acf(data):
+    bacterias = list(data.drop(columns=meta_features).columns)
+    results_pacf = dict()
+    for baboon in data["baboon_id"].unique():
+        baboon_df = data[data["baboon_id"] == baboon].sort_values("collection_date")
+        baboon_df = baboon_df.drop(columns=meta_features)
+        for bacteria in bacterias:
+            results_pacf[baboon + bacteria] = acf(baboon_df[bacteria], nlags=10)
     pacf_df = pd.DataFrame(results_pacf).T
     for i in range(10):
         sns.boxplot(x=i, y=pacf_df[i], color=custom_palette[10 * i])

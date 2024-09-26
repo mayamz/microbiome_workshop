@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 from datetime import datetime
+from sklearn.linear_model import LinearRegression
+
 
 custom_palette = list(sns.color_palette("hls", 100))
 DATA_PATH = "./data/"
@@ -30,7 +32,7 @@ def load_data():
 
 
 def aggregate_samples(data, discretization_parameter='W'):
-    cols_for_first = ['sample', "baboon_id"]
+    cols_for_first = [col for col in meta_features if col != "collection_date"]
     data.set_index('collection_date', inplace = True)
 
     x_numerical = pd.DataFrame(data.groupby([data['baboon_id'], pd.Grouper(level = 'collection_date',
@@ -108,7 +110,7 @@ def single_knn_interpolation(data, data_to_complete, K, distance_metric):
 def knn_interpolation(data, K=5):
     """ Detects missing dates for each baboon and interpolates by KNN """
     interpolated_df = pd.DataFrame()
-
+    i = 0
     for baboon_id in data["baboon_id"].unique():
         baboon_df = data[data["baboon_id"] == baboon_id]
         baboon_min_date = baboon_df["collection_date"].min()
@@ -117,12 +119,14 @@ def knn_interpolation(data, K=5):
         baboon_df["collection_date"] = pd.to_datetime(baboon_df["collection_date"])
         for date in pd.date_range(baboon_min_date, baboon_max_date, freq = "w"):
             if date not in baboon_df["collection_date"].values:
-                sample_metadata = baboon_df.iloc[0, :][["baboon_id", "collection_date", "sample"]]
+                sample_metadata = baboon_df.iloc[0, :][meta_features]
                 sample_metadata["collection_date"] = date
 
                 interpolated_df = pd.concat([interpolated_df, pd.DataFrame(
                     single_knn_interpolation(data.copy(), sample_metadata, K, interpolation_dist_metric)).T],
                                             ignore_index = True)
+        i += 1
+        print(i)
     data["interpolated"] = False
     interpolated_df["interpolated"] = True
 
@@ -136,21 +140,40 @@ def seasonal_pred(data, x_test, K=5):
     for index, test_row in x_test.iterrows():
         row_pred = pd.DataFrame(
             single_knn_interpolation(data.copy(), test_row, K, distance_metric = seasonal_dist_metric))
-        x_pred = pd.concat([x_pred, row_pred.T], ignore_index = True)
+        x_pred = pd.concat([x_pred, row_pred.T], ignore_index=True)
     return x_pred
 
 
 def linear_reg_per_baboon(data, x_test, baboon_id):
-    # TODO: yuval
-    pass
+    baboon_data = data[data["baboon_id"] == baboon_id]
+    taxa_columns = [col for col in baboon_data.columns if col not in x_test.columns]
+
+    dates_to_pred = x_test[x_test["baboon_id"] == baboon_id]["collection_date_number"].to_numpy().reshape(-1, 1)
+
+    model = LinearRegression()
+    model.fit(baboon_data["collection_date_number"].to_numpy().reshape(-1, 1), baboon_data[taxa_columns].to_numpy())
+    y_pred = pd.DataFrame(model.predict(dates_to_pred), columns=taxa_columns)
+    x_test = x_test.reset_index(drop=True)
+    y_pred = pd.concat([x_test, y_pred], axis=1)
+
+    # normalize
+    y_pred[taxa_columns] = y_pred[taxa_columns] + np.abs(y_pred[taxa_columns].min())
+    y_pred[taxa_columns] = y_pred[taxa_columns].div(y_pred[taxa_columns].sum(axis=1), axis=0)
+    return y_pred
 
 
 def trend_pred(data, x_test):
     """ Predict the trend per baboon"""
+    # add another column for ordinal date
+    min_date = data["collection_date"].min().toordinal()
+    data["collection_date_number"] = data["collection_date"].apply(lambda x: (x.toordinal() - min_date))
+    x_test["collection_date_number"] = x_test["collection_date"].apply(lambda x: (x.toordinal() - min_date))
+
     x_pred = pd.DataFrame()
+
     for baboon_id in x_test["baboon_id"].unique():
         baboon_pred = linear_reg_per_baboon(data, x_test, baboon_id)
-        x_pred = pd.concat([x_pred, baboon_pred], ignore_index = True)
+        x_pred = pd.concat([x_pred, baboon_pred], ignore_index=True)
     return x_pred
 
 
