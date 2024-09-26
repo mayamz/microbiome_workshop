@@ -63,7 +63,7 @@ def seasonal_dist_metric(x, y):
     identity_metric += (x["sex"] == y["sex"])  # sex identity
 
     # representing the closeness to the sample's season - month, rain_month_mm
-    time_metric = np.linalg.norm(x[["month_sin", "month_cos"]], y[["month_sin", "month_cos"]])  # month similarity
+    time_metric = np.linalg.norm(x[["month_sin", "month_cos"]] - y[["month_sin", "month_cos"]])  # month similarity
     time_metric += np.abs(x["rain_month_mm"] - y["rain_month_mm"])  # rain similarity
 
     # representing the closeness to the sample's diet  -  diet_PC1,diet_PC2
@@ -103,7 +103,7 @@ def single_knn_interpolation(data, data_to_complete, K, distance_metric):
     sum_time_point = sum(time_point_interpolated)
     time_point_interpolated = time_point_interpolated / sum_time_point
 
-    time_point_interpolated = pd.concat([time_point_interpolated, data_to_complete])
+    time_point_interpolated = pd.concat([data_to_complete, time_point_interpolated])
     return time_point_interpolated
 
 
