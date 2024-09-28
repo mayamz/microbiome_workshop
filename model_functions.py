@@ -10,7 +10,7 @@ DATA_PATH = "./data/"
 meta_features = ["sample", "baboon_id", "collection_date",
                  "age", "sex", "social_group",
                  "month", "rain_month_mm",
-                 "diet_PC1", "diet_PC2"]
+                 "diet_PC1", "diet_PC2", "diet_PC3"]
 
 
 def load_data():
@@ -138,10 +138,14 @@ def knn_interpolation(data, K=5):
 def seasonal_pred(data, x_test, K=5):
     """ Predict the seasonal effect """
     x_pred = pd.DataFrame()
+    i = 0
     for index, test_row in x_test.iterrows():
         row_pred = pd.DataFrame(
             single_knn_interpolation(data.copy(), test_row, K, distance_metric = seasonal_dist_metric))
         x_pred = pd.concat([x_pred, row_pred.T], ignore_index=True)
+        i += 1
+        if i % 10 == 0:
+            print(i, "out of 800")
     return x_pred
 
 
@@ -171,10 +175,12 @@ def trend_pred(data, x_test):
     x_test["collection_date_number"] = x_test["collection_date"].apply(lambda x: (x.toordinal() - min_date))
 
     x_pred = pd.DataFrame()
-
+    i = 0
     for baboon_id in x_test["baboon_id"].unique():
         baboon_pred = linear_reg_per_baboon(data, x_test, baboon_id)
         x_pred = pd.concat([x_pred, baboon_pred], ignore_index=True)
+        i += 1
+        print("baboon", i)
     return x_pred
 
 
@@ -182,7 +188,9 @@ def predict(data, x_test):
     """ Predict microbiome for x_test metadata using a hybrid of two methods"""
     # Get prediction from both models
     seasonal_prediction = seasonal_pred(data, x_test)
+    print("after seasonal_pred")
     trend_prediction = trend_pred(data, x_test)
+    print("after trend_pred")
 
     taxa_cols = [col for col in seasonal_prediction.columns if col not in x_test.columns]
 
