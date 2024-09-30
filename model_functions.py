@@ -49,29 +49,57 @@ def aggregate_samples(data, discretization_parameter='W'):
 
 
 def interpolation_dist_metric(x, y):
-    # TODO: This is the interpolation distance metric, it will be changed
-    dist = np.abs((x["collection_date"] - y["collection_date"]).total_seconds() / (60 * 60 * 24))  # time diff
-    dist += (x["baboon_id"] == y["baboon_id"])  # baboon identity
+    # weights - can be learned
+    time_weight = 0.002
+    social_weight = 0.6
+    baboon_weight = 0.2
+    age_weight = 0.25
+    sex_weight = 0.25
+    group_weight = 0.5
+
+    # representing the closeness to the sample's time, in days
+    time_dist = np.abs((x["collection_date"] - y["collection_date"])).total_seconds() / (60 * 60 * 24)  # time diff
+
+    # representing the closeness to the sample's baboon - social_group, age, sex
+    age_dist = age_weight * (np.abs((x["age"] - y["age"])) / 5)
+    sex_dist = sex_weight * (x["sex"] != y["sex"])
+    group_dist = group_weight * (x["social_group"] != y["social_group"])  # same social group - 0, else 1
+
+    baboon_dist = (x["baboon_id"] != y["baboon_id"])  # same baboon - 0, else 1
+
+    dist = time_weight * time_dist + social_weight * (age_dist + sex_dist + group_dist) + baboon_weight * baboon_dist
     return dist
 
 
 def seasonal_dist_metric(x, y):
-    # TODO: This is the seasonal KNN model distance metric, it will be changed
+    # weights - can be learned
+    season_weight = 0.4
+    identity_weight = 1
+    diet_weight = 0.018
+    age_weight = 0.25
+    sex_weight = 0.25
+    group_weight = 0.5
+    month_weight = 0.5
+    rain_weight = 0.5
+    PC1_weight = 4/7
+    PC2_weight = 2/7
+    PC3_weight = 1/7
+
     # representing the closeness to the sample's baboon - social_group, age, sex
-    identity_metric = (x["social_group"] != y["social_group"])  # group identity, TODO: check in the article for details
-    identity_metric += np.abs(x["age"] - y["age"])  # age similarity
-    identity_metric += (x["sex"] != y["sex"])  # sex identity
+    group_dist = group_weight * (x["social_group"] != y["social_group"])  # group identity
+    age_dist = age_weight * (np.abs(x["age"] - y["age"])) / 5  # age similarity
+    sex_dist = sex_weight * (x["sex"] != y["sex"])  # sex identity
 
     # representing the closeness to the sample's season - month, rain_month_mm
-    time_metric = np.linalg.norm(x[["month_sin", "month_cos"]] - y[["month_sin", "month_cos"]])  # month similarity
-    time_metric += np.abs(x["rain_month_mm"] - y["rain_month_mm"])  # rain similarity
+    month_dist = month_weight * (np.linalg.norm(x[["month_sin", "month_cos"]] - y[["month_sin", "month_cos"]])) / 2  # month similarity
+    rain_dist = rain_weight * (np.abs(x["rain_month_mm"] - y["rain_month_mm"]) / 20)  # rain similarity
 
     # representing the closeness to the sample's diet  -  diet_PC1, diet_PC2, diet_PC3
-    diet_metric = np.abs(x["diet_PC1"] - y["diet_PC1"])  # diet_PC1
-    diet_metric += 0.5 * np.abs(x["diet_PC2"] - y["diet_PC2"])  # diet_PC2
-    diet_metric += 0.25 * np.abs(x["diet_PC3"] - y["diet_PC3"])  # diet_PC3
+    diet_metric = PC1_weight * np.abs(x["diet_PC1"] - y["diet_PC1"])   # diet_PC1
+    diet_metric += PC2_weight * np.abs(x["diet_PC2"] - y["diet_PC2"])  # diet_PC2
+    diet_metric += PC3_weight * np.abs(x["diet_PC3"] - y["diet_PC3"])  # diet_PC3
 
-    dist = identity_metric + time_metric + diet_metric
+    dist = identity_weight * (age_dist + sex_dist + group_dist) + season_weight * (month_dist + rain_dist) + diet_weight * diet_metric
     return dist
 
 
@@ -83,7 +111,6 @@ def single_knn_interpolation(data, data_to_complete, K, distance_metric):
 
     # Calculate distance for each point (by our distance metric), and choose K nearest
     data["distance_from_point"] = data.apply(lambda row: distance_metric(row, data_to_complete), axis = 1)
-
     data = data.sort_values(by = ["distance_from_point"]).reset_index(drop = True)
     data = data.iloc[:K, :]
 
@@ -101,6 +128,7 @@ def single_knn_interpolation(data, data_to_complete, K, distance_metric):
     time_point_interpolated = data.sum()
 
     # Normalize the generated sample so sum(generated_sample) = 1
+    time_point_interpolated = time_point_interpolated + np.abs(time_point_interpolated.min())
     sum_time_point = sum(time_point_interpolated)
     time_point_interpolated = time_point_interpolated / sum_time_point
 
@@ -126,6 +154,7 @@ def knn_interpolation(data, K=5):
                 interpolated_df = pd.concat([interpolated_df, pd.DataFrame(
                     single_knn_interpolation(data.copy(), sample_metadata, K, interpolation_dist_metric)).T],
                                             ignore_index = True)
+
         i += 1
         print(i)
     data["interpolated"] = False
@@ -140,8 +169,7 @@ def seasonal_pred(data, x_test, K=5):
     x_pred = pd.DataFrame()
     i = 0
     for index, test_row in x_test.iterrows():
-        row_pred = pd.DataFrame(
-            single_knn_interpolation(data.copy(), test_row, K, distance_metric = seasonal_dist_metric))
+        row_pred = pd.DataFrame(single_knn_interpolation(data.copy(), test_row, K, distance_metric = seasonal_dist_metric))
         x_pred = pd.concat([x_pred, row_pred.T], ignore_index=True)
         i += 1
         if i % 10 == 0:
@@ -153,7 +181,7 @@ def linear_reg_per_baboon(data, x_test, baboon_id):
     baboon_data = data[data["baboon_id"] == baboon_id]
     taxa_columns = [col for col in baboon_data.columns if col not in x_test.columns]
 
-    dates_to_pred = x_test[x_test["baboon_id"] == baboon_id]["collection_date_number"].to_numpy().reshape(-1, 1)
+    dates_to_pred = x_test["collection_date_number"].to_numpy().reshape(-1, 1)
 
     model = LinearRegression()
     model.fit(baboon_data["collection_date_number"].to_numpy().reshape(-1, 1), baboon_data[taxa_columns].to_numpy())
@@ -177,7 +205,7 @@ def trend_pred(data, x_test):
     x_pred = pd.DataFrame()
     i = 0
     for baboon_id in x_test["baboon_id"].unique():
-        baboon_pred = linear_reg_per_baboon(data, x_test, baboon_id)
+        baboon_pred = linear_reg_per_baboon(data, x_test[x_test["baboon_id"] == baboon_id], baboon_id)
         x_pred = pd.concat([x_pred, baboon_pred], ignore_index=True)
         i += 1
         print("baboon", i)
@@ -186,12 +214,15 @@ def trend_pred(data, x_test):
 
 def predict(data, x_test):
     """ Predict microbiome for x_test metadata using a hybrid of two methods"""
+    x_test = x_test.reset_index()
+
     # Get prediction from both models
     seasonal_prediction = seasonal_pred(data, x_test)
+    seasonal_prediction = seasonal_prediction.sort_values("index")
     print("after seasonal_pred")
     trend_prediction = trend_pred(data, x_test)
+    trend_prediction = trend_prediction.sort_values("index")
     print("after trend_pred")
-
     taxa_cols = [col for col in seasonal_prediction.columns if col not in x_test.columns]
 
     # Merge the two models by averaging them
