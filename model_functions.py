@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 import seaborn as sns
-from datetime import datetime
 from sklearn.linear_model import LinearRegression
 
 
@@ -156,7 +155,7 @@ def knn_interpolation(data, K=5):
                                             ignore_index = True)
 
         i += 1
-        print(i)
+        print(f"finished interpolating baboon {i}")
     data["interpolated"] = False
     interpolated_df["interpolated"] = True
 
@@ -172,8 +171,8 @@ def seasonal_pred(data, x_test, K=5):
         row_pred = pd.DataFrame(single_knn_interpolation(data.copy(), test_row, K, distance_metric = seasonal_dist_metric))
         x_pred = pd.concat([x_pred, row_pred.T], ignore_index=True)
         i += 1
-        if i % 10 == 0:
-            print(i, "out of 800")
+        if i % 50 == 0:
+            print(f"finished {i} out of {len(x_test)}")
     return x_pred
 
 
@@ -203,12 +202,9 @@ def trend_pred(data, x_test):
     x_test["collection_date_number"] = x_test["collection_date"].apply(lambda x: (x.toordinal() - min_date))
 
     x_pred = pd.DataFrame()
-    i = 0
     for baboon_id in x_test["baboon_id"].unique():
         baboon_pred = linear_reg_per_baboon(data, x_test[x_test["baboon_id"] == baboon_id], baboon_id)
         x_pred = pd.concat([x_pred, baboon_pred], ignore_index=True)
-        i += 1
-        print("baboon", i)
     return x_pred
 
 
@@ -217,12 +213,13 @@ def predict(data, x_test):
     x_test = x_test.reset_index()
 
     # Get prediction from both models
+    print("start seasonal_pred")
     seasonal_prediction = seasonal_pred(data, x_test)
     seasonal_prediction = seasonal_prediction.sort_values("index")
-    print("after seasonal_pred")
+    print("finished seasonal_pred\nstart trend_pred")
     trend_prediction = trend_pred(data, x_test)
     trend_prediction = trend_prediction.sort_values("index")
-    print("after trend_pred")
+    print("finished trend_pred")
     taxa_cols = [col for col in seasonal_prediction.columns if col not in x_test.columns]
 
     # Merge the two models by averaging them
