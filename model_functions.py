@@ -29,9 +29,17 @@ def load_data():
 
     return data, metadata
 
+def change_date(date):
+    day_of_week = date.weekday()
+    if day_of_week < 3 or day_of_week == 6:  # Sunday, Monday, Tuesday, Wednesday
+        return date
+    return date + pd.DateOffset(days=3)
+
 
 def aggregate_samples(data, discretization_parameter='W'):
     cols_for_first = [col for col in meta_features if col != "collection_date"]
+
+    data["collection_date"] = data["collection_date"].apply(lambda x: change_date(x))
     data.set_index('collection_date', inplace = True)
 
     x_numerical = pd.DataFrame(data.groupby([data['baboon_id'], pd.Grouper(level = 'collection_date',
@@ -49,7 +57,7 @@ def aggregate_samples(data, discretization_parameter='W'):
 
 def interpolation_dist_metric(x, y):
     # weights - can be learned
-    time_weight = 0.002
+    time_weight = 0.01
     social_weight = 0.6
     baboon_weight = 0.2
     age_weight = 0.25
@@ -102,11 +110,14 @@ def seasonal_dist_metric(x, y):
     return dist
 
 
-def single_knn_interpolation(data, data_to_complete, K, distance_metric):
+def single_knn_interpolation(data, data_to_complete, K, distance_metric, filter_dates=False):
     """
     Based on the KNN interpolation from "Interpolation of Microbiome Composition in Longitudinal Datasets" (Peleg & Borenstein)
     Returns an interpolation of the data point using KNN kernel with Epanechnikov function.
     """
+    # Filter near timepoints
+    if filter_dates:
+        data = data[np.abs((data["collection_date"] - data_to_complete["collection_date"])).dt.total_seconds() / (60 * 60 * 24) < 110]
 
     # Calculate distance for each point (by our distance metric), and choose K nearest
     data["distance_from_point"] = data.apply(lambda row: distance_metric(row, data_to_complete), axis = 1)
@@ -114,7 +125,7 @@ def single_knn_interpolation(data, data_to_complete, K, distance_metric):
     data = data.iloc[:K, :]
 
     # Calculate Epanechnikov kernel function
-    Kpoint = data.loc[K - 1, "distance_from_point"]
+    Kpoint = data.loc[min(len(data) - 1, K - 1), "distance_from_point"]
     data = data[[col for col in data.columns if col not in data_to_complete.index]]
     data["K(t)"] = data["distance_from_point"] / Kpoint
 
@@ -151,8 +162,7 @@ def knn_interpolation(data, K=5):
                 sample_metadata["collection_date"] = date
 
                 interpolated_df = pd.concat([interpolated_df, pd.DataFrame(
-                    single_knn_interpolation(data.copy(), sample_metadata, K, interpolation_dist_metric)).T],
-                                            ignore_index = True)
+                    single_knn_interpolation(data.copy(), sample_metadata, K, interpolation_dist_metric, filter_dates=True)).T], ignore_index = True)
 
         i += 1
         print(f"finished interpolating baboon {i}")
@@ -179,6 +189,10 @@ def seasonal_pred(data, x_test, K=5):
 def linear_reg_per_baboon(data, x_test, baboon_id):
     baboon_data = data[data["baboon_id"] == baboon_id]
     taxa_columns = [col for col in baboon_data.columns if col not in x_test.columns]
+
+    # fit only in last samples
+    baboon_data["collection_date_number"] = baboon_data["collection_date_number"].sort_values()
+    baboon_data = baboon_data.iloc[-min(len(baboon_data) + 1, 30):, :]
 
     dates_to_pred = x_test["collection_date_number"].to_numpy().reshape(-1, 1)
 
