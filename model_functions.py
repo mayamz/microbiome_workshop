@@ -82,7 +82,7 @@ def seasonal_dist_metric(x, y):
     # weights - can be learned
     season_weight = 0.4
     identity_weight = 1
-    diet_weight = 0.018
+    diet_weight = 0.05
     age_weight = 0.25
     sex_weight = 0.25
     group_weight = 0.5
@@ -181,7 +181,7 @@ def seasonal_pred(data, x_test, K=5):
         row_pred = pd.DataFrame(single_knn_interpolation(data.copy(), test_row, K, distance_metric = seasonal_dist_metric))
         x_pred = pd.concat([x_pred, row_pred.T], ignore_index=True)
         i += 1
-        if i % 50 == 0:
+        if i % 10 == 0:
             print(f"finished {i} out of {len(x_test)}")
     return x_pred
 
