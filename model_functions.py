@@ -81,8 +81,8 @@ def interpolation_dist_metric(x, y):
 def seasonal_dist_metric(x, y):
     # weights - can be learned
     season_weight = 0.4
-    identity_weight = 1
-    diet_weight = 0.05
+    identity_weight = 0.1
+    diet_weight = 0.025
     age_weight = 0.25
     sex_weight = 0.25
     group_weight = 0.5
