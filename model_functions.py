@@ -12,10 +12,10 @@ meta_features = ["sample", "baboon_id", "collection_date",
                  "diet_PC1", "diet_PC2", "diet_PC3"]
 
 
-def load_data():
-    metadata = pd.read_csv(f"{DATA_PATH}train_metadata.csv")
+def load_data(data_name="train_data", metadata_name="train_metadata"):
+    metadata = pd.read_csv(f"{DATA_PATH}{metadata_name}.csv")
     metadata["collection_date"] = pd.to_datetime(metadata["collection_date"])
-    data = pd.read_csv(f"{DATA_PATH}train_data.csv")
+    data = pd.read_csv(f"{DATA_PATH}{data_name}.csv")
 
     species = list(data.columns)
     species.remove("sample")
@@ -26,6 +26,9 @@ def load_data():
     # Convert month to cyclic
     data["month_sin"] = np.sin(2 * np.pi * data["month"] / 12.0)
     data["month_cos"] = np.cos(2 * np.pi * data["month"] / 12.0)
+
+    metadata["month_sin"] = np.sin(2 * np.pi * metadata["month"] / 12.0)
+    metadata["month_cos"] = np.cos(2 * np.pi * metadata["month"] / 12.0)
 
     return data, metadata
 
@@ -227,13 +230,14 @@ def predict(data, x_test):
     x_test = x_test.reset_index()
 
     # Get prediction from both models
-    print("start seasonal_pred")
-    seasonal_prediction = seasonal_pred(data, x_test)
-    seasonal_prediction = seasonal_prediction.sort_values("index").reset_index(drop=True)
-    print("finished seasonal_pred\nstart trend_pred")
+    print("start trend_pred")
     trend_prediction = trend_pred(data, x_test)
     trend_prediction = trend_prediction.sort_values("index").reset_index(drop=True)
-    print("finished trend_pred")
+    print("finished trend_pred\nstart seasonal_pred")
+    seasonal_prediction = seasonal_pred(data, x_test)
+    seasonal_prediction = seasonal_prediction.sort_values("index").reset_index(drop=True)
+    print("finished seasonal_pred")
+
     taxa_cols = [col for col in seasonal_prediction.columns if col not in x_test.columns]
 
     # Merge the two models by averaging them
