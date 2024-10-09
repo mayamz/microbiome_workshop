@@ -80,7 +80,7 @@ def interpolation_dist_metric(x, y):
 
 def seasonal_dist_metric(x, y):
     # weights - can be learned
-    season_weight = 0.4
+    season_weight = 0.35
     identity_weight = 0.1
     diet_weight = 0.025
     age_weight = 0.25
@@ -181,7 +181,7 @@ def seasonal_pred(data, x_test, K=5):
         row_pred = pd.DataFrame(single_knn_interpolation(data.copy(), test_row, K, distance_metric = seasonal_dist_metric))
         x_pred = pd.concat([x_pred, row_pred.T], ignore_index=True)
         i += 1
-        if i % 10 == 0:
+        if i % 100 == 0:
             print(f"finished {i} out of {len(x_test)}")
     return x_pred
 
@@ -192,7 +192,7 @@ def linear_reg_per_baboon(data, x_test, baboon_id):
 
     # fit only in last samples
     baboon_data["collection_date_number"] = baboon_data["collection_date_number"].sort_values()
-    baboon_data = baboon_data.iloc[-min(len(baboon_data) + 1, 30):, :]
+    baboon_data = baboon_data.iloc[-min(len(baboon_data) + 1, 80):, :]
 
     dates_to_pred = x_test["collection_date_number"].to_numpy().reshape(-1, 1)
 
@@ -229,15 +229,17 @@ def predict(data, x_test):
     # Get prediction from both models
     print("start seasonal_pred")
     seasonal_prediction = seasonal_pred(data, x_test)
-    seasonal_prediction = seasonal_prediction.sort_values("index")
+    seasonal_prediction = seasonal_prediction.sort_values("index").reset_index(drop=True)
     print("finished seasonal_pred\nstart trend_pred")
     trend_prediction = trend_pred(data, x_test)
-    trend_prediction = trend_prediction.sort_values("index")
+    trend_prediction = trend_prediction.sort_values("index").reset_index(drop=True)
     print("finished trend_pred")
     taxa_cols = [col for col in seasonal_prediction.columns if col not in x_test.columns]
 
     # Merge the two models by averaging them
     x_pred = seasonal_prediction.copy()
-    x_pred[taxa_cols] = seasonal_prediction[taxa_cols] * 0.5 + trend_prediction[taxa_cols] * 0.5
-
+    x_pred["sample_num"] = x_pred.groupby("baboon_id").transform("count")["collection_date"]
+    x_pred[taxa_cols] = x_pred[taxa_cols].where(x_pred["sample_num"] > 10, seasonal_prediction[taxa_cols] * 0.5 + trend_prediction[taxa_cols] * 0.5)
+    x_pred[taxa_cols] = x_pred[taxa_cols].where(x_pred["sample_num"] <= 10, seasonal_prediction[taxa_cols] * 0.8 + trend_prediction[taxa_cols] * 0.2)
+    x_pred = x_pred.drop(columns=["sample_num"])
     return x_pred
